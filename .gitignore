@@ -4,3 +4,5 @@ logs*/
 *.DS_Store
 *.pyc
 demo_data
+.env
+repos/
