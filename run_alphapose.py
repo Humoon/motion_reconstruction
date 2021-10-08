@@ -8,7 +8,7 @@ from __future__ import print_function
 from os.path import join, exists, basename
 from os import makedirs, system
 from glob import glob
-import json
+import json, os, sys
 import numpy as np
 import cv2
 import matplotlib.patches as patches
@@ -16,23 +16,14 @@ import scipy.signal as signal
 import deepdish as dd
 
 import tensorflow as tf
-# import tensorflow.compat.v1 as tf
 
-# tf.disable_v2_behavior()
-
+parentdir = os.path.dirname('hmr/')
+sys.path.insert(0, parentdir)
 from src.util.renderer import draw_openpose_skeleton
 
-kVidDir = 'demo_data/original_video'
-kOutDir = 'demo_data/openpose_output'
-
-kOpenPose = 'repos/openpose'
-kOpenPoseModel = 'repos/aj_finetuned_models_170k/'
-
-tf.app.flags.DEFINE_string('video_dir', kVidDir, 'dir of vids')
-tf.app.flags.DEFINE_string('out_dir', kOutDir, 'dir of output')
-tf.app.flags.DEFINE_string('openpose_dir', kOpenPose, 'dir of openpose')
-tf.app.flags.DEFINE_string('op_model_dir', kOpenPoseModel,
-                           'dir of openpose model')
+parentdir = os.path.dirname('AlphaPose/')
+sys.path.insert(0, parentdir)
+from call_for_hmr import call_alphapose
 
 # Threshold for visible points
 VIS_THR = 0.1
@@ -59,37 +50,26 @@ RADIUS = BOX_SIZE / 2.
 FLAGS = tf.app.flags.FLAGS
 
 
-def main(unused_argv):
-    vid_dir = FLAGS.video_dir
-    out_dir = FLAGS.out_dir
-    openpose_dir = FLAGS.openpose_dir
-
-    if FLAGS.op_model_dir != kOpenPoseModel:
-        out_dir += "_nondefaultop"
-
-    if not exists(vid_dir):
-        print('%s doesnt exist' % vid_dir)
-        # import ipdb
-        # ipdb.set_trace()
+def main(unused_argv,
+         vid_dir='demo_data/original_video',
+         out_dir='demo_data/alphapose_output'):
     if not exists(out_dir):
         print('Making %s' % out_dir)
         makedirs(out_dir)
-
     vid_paths = sorted(glob(join(vid_dir, "*.mp4")))
-
-    # cmd_base = '%s/build/examples/openpose/openpose.bin --video %%s --write_keypoint_json %%s --no_display --render_pose 1' % (
-    #     openpose_dir)
-    # Maximum accuracy configuration:
-    cmd_base = '%s/build/examples/openpose/openpose.bin --video %%s --write_keypoint_json %%s --net_resolution "1312x736" --scale_number 4 --scale_gap 0.25 --write_images %%s --write_images_format jpg' % (
-        openpose_dir)
-
-    cmd_base += ' --model_folder %s' % FLAGS.op_model_dir
-
-    cmd_extra = ' --net_resolution "1312x736" --scale_number 4 --scale_gap 0.25'
-
     for i, vid_path in enumerate(vid_paths[::-1]):
+        imgs = read_frames(vid_path)
+
         vid_name = basename(vid_path)[:-4]
         out_here = join(out_dir, vid_name)
+
+        save_vid_path = join(join(out_dir, vid_name), 'frames')
+        os.makedirs(save_vid_path, exist_ok=True)
+        from PIL import Image
+        for i in range(len(imgs)):
+            im = Image.fromarray(imgs[i])
+            im.save(join(save_vid_path, '%06d.jpg' % i))
+
         # bbox_path = join(out_dir, vid_name + '_bboxes_tmpwind25.h5')
         bbox_path = join(out_dir, vid_name + '_bboxes.h5')
         if exists(bbox_path):
@@ -103,14 +83,7 @@ def main(unused_argv):
                 digest_openpose(out_here, vid_path, bbox_path)
         # else:
         if not exists(bbox_path):
-            cmd = cmd_base % (vid_path, out_here, out_here)
-            print(cmd)
-            res = system(cmd)
-            if res > 0:
-                print('somethign wrong?')
-                # import ipdb
-                # ipdb.set_trace()
-            # print(cmd + cmd_extra)
+            call_alphapose(save_vid_path, out_here, format='open', batchSize=1)
             digest_openpose(out_here, vid_path, bbox_path)
 
 
@@ -144,7 +117,7 @@ def clean_detections(all_kps, vid_path, vis=False):
         frames = read_frames(vid_path)
     start_frame, end_frame = -1, -1
     for i, kps in enumerate(all_kps):
-        if i % 50 == 0:
+        if i % 10 == 0:
             print('%d/%d' % (i, len(all_kps)))
         if len(kps) == 0:
             continue
@@ -160,7 +133,6 @@ def clean_detections(all_kps, vid_path, vis=False):
         if len(bboxes) == 0:
             # None of them were good.
             continue
-
         bboxes = np.vstack(bboxes)
         valid_kps = np.stack(valid_kps)
 
@@ -176,7 +148,7 @@ def clean_detections(all_kps, vid_path, vis=False):
             end_frame = i
             # Find matching persons.
             iou_scores = []
-            for p_id, p_bboxes in persons.iteritems():
+            for p_id, p_bboxes in persons.items():
                 last_time, last_bbox, last_kp = p_bboxes[-1]
                 if (i - last_time) > OCCL_THR:
                     ious = -np.ones(len(bboxes))
@@ -230,7 +202,7 @@ def clean_detections(all_kps, vid_path, vis=False):
             frame = frames[i]
             ax.imshow(frame)
             ax.set_title('frame %d' % i)
-            for p_id, p_bboxes in persons.iteritems():
+            for p_id, p_bboxes in persons.items():
                 last_time, last_bbox, last_kps = p_bboxes[-1]
                 # If was found in current frame
                 if last_time == i:
@@ -366,25 +338,6 @@ def smooth_detections(persons):
         ])
         final_kps = kps_filled[:last_ind]
 
-        # import matplotlib.pyplot as plt
-        # plt.ion()
-        # plt.figure(2)
-        # plt.clf()
-        # plt.subplot(311)
-        # plt.plot(times, bbox_params[:, 0])
-        # plt.plot(times, smoothed[:, 0])
-        # plt.plot(times, smoothed2[:, 0])
-        # plt.subplot(312)
-        # plt.plot(times, bbox_params[:, 1])
-        # plt.plot(times, smoothed[:, 1])
-        # plt.plot(times, smoothed2[:,  1])
-        # plt.subplot(313)
-        # plt.plot(times, bbox_params[:, 2])
-        # plt.plot(times, smoothed[:, 2])
-        # plt.plot(times, smoothed2[:, 2])
-        # plt.draw()
-        # import ipdb; ipdb.set_trace()
-
         # Conver this into dict of time.
         for time, bbox, kps in zip(times, final_bboxes, final_kps):
             if time in per_frame.keys():
@@ -471,7 +424,7 @@ def read_json(json_path):
         data = json.load(f)
     kps = []
     for people in data['people']:
-        kp = np.array(people['pose_keypoints']).reshape(-1, 3)
+        kp = np.array(people['pose_keypoints_2d']).reshape(-1, 3)
         kps.append(kp)
     return kps
 
@@ -564,5 +517,5 @@ def read_frames(path, max_num=None):
 
 
 if __name__ == '__main__':
-    tf.compat.v1.app.run()
     # tf.app.run()
+    tf.compat.v1.app.run()

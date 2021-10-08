@@ -12,7 +12,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 import cv2
 from absl import flags
 import numpy as np
@@ -34,26 +33,24 @@ from src.util.renderer import SMPLRenderer, draw_openpose_skeleton, render_origi
 from src.refiner import Refiner
 # from jason.bvh_core import write2bvh
 
-
 # Defaults:
-kVidDir = '/home/kanazawa/projects/hmr_sfv/demo_data/videos/'
+kVidDir = 'demo_data/original_video/'
 # Where the smoothed results will be stored.
-kOutDir = '/home/kanazawa/projects/hmr_sfv/demo_data/results_smoothed/'
+kOutDir = 'demo_data/results_smoothed/'
 # Holds h5 for each video, which stores OP outputs, after trajectory assignment.
-kOpDir = '/home/kanazawa/projects/hmr_sfv/demo_data/openpose_output'
-
+kOpDir = 'demo_data/alphapose_output'
 
 kMaxLength = 1000
 kVisThr = 0.2
 RENDONLY = False
 
 # set if you only want to render specific renders.
-flags.DEFINE_string('render_only', '', 'If not empty and are either {mesh, mesh_only}, only renders that result.')
+flags.DEFINE_string(
+    'render_only', '',
+    'If not empty and are either {mesh, mesh_only}, only renders that result.')
 flags.DEFINE_string('vid_dir', kVidDir, 'directory with videso')
 flags.DEFINE_string('out_dir', kOutDir, 'directory to output results')
-flags.DEFINE_string('op_dir', kOpDir,
-                    'directory where openpose output is')
-
+flags.DEFINE_string('op_dir', kOpDir, 'directory where openpose output is')
 
 model = None
 sess = None
@@ -79,7 +76,7 @@ def run_video(frames, per_frame_people, config, out_mov_path):
         # Run HMR + refinement.
         tf.reset_default_graph()
         model = Refiner(config, num_frames)
-        scale_factors = [np.mean(pp['scale'])for pp in proc_params]
+        scale_factors = [np.mean(pp['scale']) for pp in proc_params]
         offsets = np.vstack([pp['start_pt'] for pp in proc_params])
         results = model.predict(proc_imgs, proc_kps, scale_factors, offsets)
         # Pack proc_param into result.
@@ -94,8 +91,8 @@ def run_video(frames, per_frame_people, config, out_mov_path):
 
             # Recover verts from SMPL params.
             theta = results['theta'][i]
-            pose = theta[3:3+72]
-            shape = theta[3+72:]
+            pose = theta[3:3 + 72]
+            shape = theta[3 + 72:]
             smpl.trans[:] = 0.
             smpl.betas[:] = shape
             smpl.pose[:] = pose
@@ -142,13 +139,12 @@ def run_video(frames, per_frame_people, config, out_mov_path):
             skel_frame = frame.copy()
             op_frame = frame.copy()
 
-        op_frame = cv2.putText(
-            op_frame.copy(),
-            'OpenPose Output', (10, 50),
-            0,
-            1,
-            np.array([0, 0, 0]),
-            thickness=3)
+        op_frame = cv2.putText(op_frame.copy(),
+                               'OpenPose Output', (10, 50),
+                               0,
+                               1,
+                               np.array([0, 0, 0]),
+                               thickness=3)
         other_vp = np.ones_like(frame)
         other_vp2 = np.ones_like(frame)
 
@@ -158,14 +154,8 @@ def run_video(frames, per_frame_people, config, out_mov_path):
 
         if not RENDONLY or (RENDONLY and 'op' not in REND_TYPE):
             rend_frame, skel_frame, other_vp, other_vp2 = render_original(
-                rend_frame,
-                skel_frame,
-                proc_param,
-                result_here,
-                other_vp,
-                other_vp2,
-                bbox,
-                renderer)
+                rend_frame, skel_frame, proc_param, result_here, other_vp,
+                other_vp2, bbox, renderer)
             row1 = np.hstack((frame, skel_frame, np.ones_like(op_frame) * 255))
             row2 = np.hstack((rend_frame, other_vp2[:, :, :3], op_frame))
             final_rend_img = np.vstack((row2, row1)).astype(np.uint8)
@@ -222,7 +212,8 @@ def get_pred_prefix(load_path):
 
     prefix = '_'.join(prefix)
     if 'Feb12_2100' not in model_name:
-        pred_dir = join(config.out_dir, model_name + '-' + checkpt_name, prefix)
+        pred_dir = join(config.out_dir, model_name + '-' + checkpt_name,
+                        prefix)
     else:
         if prefix == '':
             save_prefix = checkpt_name
@@ -248,13 +239,16 @@ def main(config):
     # Figure out the save name.
     pred_dir = get_pred_prefix(config.load_path)
     # import ipdb; ipdb.set_trace()
-    pred_dir = '/home/kanazawa/projects/hmr_sfv/demo_data/results_smoothed/'
+    pred_dir = 'demo_data/results_smoothed/'
 
     for i, vid_path in enumerate(video_paths[:]):
-        out_mov_path = join(pred_dir, basename(vid_path).replace('.mp4', '.h5'))
+        out_mov_path = join(pred_dir,
+                            basename(vid_path).replace('.mp4', '.h5'))
         if not exists(out_mov_path) or config.viz:
             print('working on %s' % basename(vid_path))
-            frames, per_frame_people, valid = read_data(vid_path, config.op_dir, max_length=kMaxLength)
+            frames, per_frame_people, valid = read_data(vid_path,
+                                                        config.op_dir,
+                                                        max_length=kMaxLength)
             if valid:
                 run_video(frames, per_frame_people, config, out_mov_path)
 
@@ -268,9 +262,11 @@ if __name__ == '__main__':
         RENDONLY = True
         REND_TYPE = config.render_only
         rend_types = ['mesh', 'mesh_only', 'op', 'op_only']
-        if not np.any(np.array([REND_TYPE == rend_t for rend_t in rend_types])):
+        if not np.any(np.array([REND_TYPE == rend_t
+                                for rend_t in rend_types])):
             print('Unknown rend type %s!' % REND_TYPE)
-            import ipdb; ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
 
     if not config.load_path:
         raise Exception('Must specify a model to use to predict!')
@@ -281,7 +277,8 @@ if __name__ == '__main__':
         makedirs(config.out_dir)
 
     # For visualization.
-    renderer = SMPLRenderer(img_size=config.img_size, flength=1000.,
+    renderer = SMPLRenderer(img_size=config.img_size,
+                            flength=1000.,
                             face_path=config.smpl_face_path)
     smpl = load_model(config.smpl_model_path)
 

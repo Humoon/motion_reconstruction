@@ -22,13 +22,14 @@ curr_path = osp.dirname(osp.abspath(__file__))
 model_dir = osp.join(curr_path, '..', 'models')
 if not osp.exists(model_dir):
     print('Fix path to models/')
-    import ipdb
-    ipdb.set_trace()
+    # import ipdb
+    # ipdb.set_trace()
 SMPL_MODEL_PATH = osp.join(model_dir, 'neutral_smpl_with_cocoplus_reg.pkl')
 SMPL_FACE_PATH = osp.join(curr_path, 'tf_smpl', 'smpl_faces.npy')
 
 # Default pred-trained model path for the demo.
-PRETRAINED_MODEL = osp.join(model_dir, 'hmr_rotaug_May03_1425/model.ckpt-1111959'
+PRETRAINED_MODEL = osp.join(model_dir,
+                            'hmr_rotaug_May03_1425/model.ckpt-1111959')
 # PRETRAINED_MODEL = osp.join(model_dir, 'model.ckpt-667589')
 
 flags.DEFINE_string('smpl_model_path', SMPL_MODEL_PATH,
@@ -36,7 +37,6 @@ flags.DEFINE_string('smpl_model_path', SMPL_MODEL_PATH,
 flags.DEFINE_string('smpl_face_path', SMPL_FACE_PATH,
                     'path to smpl mesh faces (for easy rendering)')
 flags.DEFINE_string('load_path', PRETRAINED_MODEL, 'path to trained model')
-
 
 flags.DEFINE_integer('img_size', 224,
                      'Input image size to the network after preprocessing')
@@ -53,12 +53,18 @@ flags.DEFINE_float('e_loss_weight', 10, 'weight on kp alignment')
 flags.DEFINE_float('shape_loss_weight', .5, 'weight on shape variance')
 flags.DEFINE_float('joint_smooth_weight', 25, 'weight on joint smoothness')
 flags.DEFINE_float('camera_smooth_weight', 1., 'weight on camera smoothness')
-flags.DEFINE_float('init_pose_loss_weight', 100., 'weight on how much to stick to initial pose')
+flags.DEFINE_float('init_pose_loss_weight', 100.,
+                   'weight on how much to stick to initial pose')
 
 # Other settings:
 flags.DEFINE_integer('num_refine', 300, 'number of iterations to optimize.')
-flags.DEFINE_boolean('use_weighted_init_pose', True, 'weights init_pose_loss according to initial closeness with openpose.. ')
-flags.DEFINE_boolean('refine_inpose', False, 'if true optimizes wrt the pose space as opposed to the latent feature space. ')
+flags.DEFINE_boolean(
+    'use_weighted_init_pose', True,
+    'weights init_pose_loss according to initial closeness with openpose.. ')
+flags.DEFINE_boolean(
+    'refine_inpose', False,
+    'if true optimizes wrt the pose space as opposed to the latent feature space. '
+)
 
 
 def get_config():

@@ -6,3 +6,6 @@ logs*/
 demo_data
 .env
 repos/
+*data/
+AlphaPose/models
+events.*

@@ -107,7 +107,7 @@ def preprocess_image(frame, bbox, op_kp, img_size, vis_thresh):
     """
     Also converts op_kp into cocoplus kp.
     """
-    from image import resize_img
+    from src.util.image import resize_img
     # bbox here is (cx, cy, scale, x, y, h, w)
     center = bbox[:2]
     scale = bbox[2]
@@ -124,8 +124,8 @@ def preprocess_image(frame, bbox, op_kp, img_size, vis_thresh):
     kp[:, 1] *= scale_factors[1]
 
     margin = int(img_size / 2)
-    image_pad = np.pad(
-        image_scaled, ((margin, ), (margin, ), (0, )), mode='edge')
+    image_pad = np.pad(image_scaled, ((margin, ), (margin, ), (0, )),
+                       mode='edge')
     center_pad = center_scaled + margin
     # figure out starting point
     start_pt = center_pad - margin
@@ -166,7 +166,7 @@ def preprocess_image(frame, bbox, op_kp, img_size, vis_thresh):
 
 
 def collect_frames(frames, per_frame_people, img_size, vis_thresh):
-    time_with_people = per_frame_people.keys()
+    time_with_people = list(per_frame_people.keys())
     start_frame = np.min(time_with_people)
     end_frame = np.max(time_with_people)
 
